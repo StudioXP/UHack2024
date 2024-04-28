@@ -1,0 +1,108 @@
+[gd_scene load_steps=4 format=3 uid="uid://c62jrsw3lnv5x"]
+
+[sub_resource type="GDScript" id="GDScript_4ronx"]
+script/source = "extends Node2D
+
+var grid_size = Vector2(32, 18)
+var cell_size = 10
+var object_size = 10
+
+var grid = []
+
+var wall_texture = preload(\"res://Tiles/tile_0014.png\")
+var path_texture = preload(\"res://Tiles/tile_0000.png\")
+var object_texture = preload(\"res://Tiles/tile_0089.png\")
+
+var object_placed = false
+
+func _ready():
+	generate_maze()
+
+func generate_maze():
+	# Initialize grid
+	for x in range(int(grid_size.x)):
+		var row = []
+		for y in range(int(grid_size.y)):
+			row.append(true) # true represents wall
+		grid.append(row)
+
+	# Generate maze using DFS algorithm
+	dfs(Vector2(randi() % int(grid_size.x), randi() % int(grid_size.y)))
+
+
+	# Add objects to the map
+	add_objects()
+
+func dfs(current):
+	var directions = shuffle_array([Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)])
+	
+	for dir in directions:
+		var next_cell = current + dir * 2
+		if next_cell.x < 0 or next_cell.x >= grid_size.x or next_cell.y < 0 or next_cell.y >= grid_size.y:
+			continue
+		if grid[int(next_cell.x)][int(next_cell.y)]:
+			# Remove wall
+			grid[int(current.x + dir.x)][int(current.y + dir.y)] = false
+			grid[int(current.x + dir.x * 2)][int(current.y + dir.y * 2)] = false
+			dfs(next_cell)
+
+	# Add tiles
+	for x in range(int(grid_size.x)):
+		for y in range(int(grid_size.y)):
+			var sprite = Sprite2D.new()
+			if grid[int(x)][int(y)]:
+				sprite.texture = wall_texture
+			else:
+				sprite.texture = path_texture
+			sprite.position = Vector2(x * cell_size, y * cell_size)
+			add_child(sprite)
+
+func add_objects():
+	if not object_placed:
+		# Get list of available path tiles
+		var path_tiles = []
+		for x in range(int(grid_size.x)):
+			for y in range(int(grid_size.y)):
+				if not grid[int(x)][int(y)]:
+					var isAvailable = true
+					# Check if the object can fit in this position
+					for i in range(object_size):
+						for j in range(object_size):
+							if (int(x) + i >= int(grid_size.x)) or (int(y) + j >= int(grid_size.y)) or grid[int(x) + i][int(y) + j]:
+								isAvailable = false
+					if isAvailable:
+						path_tiles.append(Vector2(x, y))
+		# Choose a random path tile
+		if path_tiles.size() > 0:
+			var random_tile = path_tiles[randi() % path_tiles.size()]
+			var object_position = Vector2(random_tile.x * cell_size, random_tile.y * cell_size)
+			# Create a sprite for the object
+			var object_sprite = Sprite2D.new()
+			object_sprite.texture = object_texture
+			# Rescale the sprite to fit the cell size
+			object_sprite.scale = Vector2(cell_size / object_texture.get_width(), cell_size / object_texture.get_height())
+			object_sprite.position = object_position
+			add_child(object_sprite)
+			# Set object_placed to true to indicate that the object has been placed
+			object_placed = true
+
+func shuffle_array(arr):
+	for i in range(arr.size()):
+		var j = randi() % arr.size()
+		arr[i] = arr[j]
+		arr[j] = arr[i]
+	return arr
+"
+
+[sub_resource type="TileSet" id="TileSet_2gi2p"]
+
+[sub_resource type="GDScript" id="GDScript_awft8"]
+
+[node name="Node2D" type="Node2D"]
+script = SubResource("GDScript_4ronx")
+
+[node name="TileMap" type="TileMap" parent="."]
+position = Vector2(0, 1)
+tile_set = SubResource("TileSet_2gi2p")
+format = 2
+script = SubResource("GDScript_awft8")
